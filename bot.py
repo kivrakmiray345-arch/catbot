@@ -102,4 +102,4 @@ token = os.environ.get("DISCORD_TOKEN")
 if not token:
     raise RuntimeError("DISCORD_TOKEN environment variable is not set.")
 
-bot.run(token)
+bot.run(MTUwMDQ0NzA4NzI5MTI3MzM0OQ.GyUiXn.AB6PL9Yizkv-5_TJg4pqyxNjaYVdC62HD2ypG4)
