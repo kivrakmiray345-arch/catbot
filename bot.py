@@ -106,3 +106,27 @@ bot.run(MTUwMDQ0NzA4NzI5MTI3MzM0OQ.GyUiXn.AB6PL9Yizkv-5_TJg4pqyxNjaYVdC62HD2ypG4
 import os
 token = os.environ.get("MTUwMDQ0NzA4NzI5MTI3MzM0OQ.GyUiXn.AB6PL9Yizkv-5_TJg4pqyxNjaYVdC62HD2ypG4")
 bot.run(MTUwMDQ0NzA4NzI5MTI3MzM0OQ.GyUiXn.AB6PL9Yizkv-5_TJg4pqyxNjaYVdC62HD2ypG4)
+import discord
+from discord.ext import commands
+import os
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+@bot.event
+async def on_ready():
+    print("🐱 Cat Bot aktif!")
+
+@bot.command()
+async def cat(ctx):
+    await ctx.send("🐱 miyav!")
+
+@bot.command()
+async def miyav(ctx):
+    await ctx.send("😺 miyav miyav!")
+
+# Railway'den TOKEN alır
+token = os.environ.get("TOKEN")
+bot.run(MTUwMDQ0NzA4NzI5MTI3MzM0OQ.GyUiXn.AB6PL9Yizkv-5_TJg4pqyxNjaYVdC62HD2ypG4)
