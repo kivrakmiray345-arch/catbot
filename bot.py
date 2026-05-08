@@ -15,7 +15,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    print(f"Logged in as {mirray77_} (ID: {bot1500447087291273349.id})")
     print("Cat Bot Wiki is ready.")
 
 
