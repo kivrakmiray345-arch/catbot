@@ -304,6 +304,25 @@ async def catimg(ctx):
     await ctx.send(embed=embed)
 
 
+# ── benim kedim ──────────────────────────────────────────────────────────────
+@bot.command(name="benim kedim")
+async def benim_kedim(ctx):
+    """Benim tatlı kedim! 🐱💕"""
+    embed = discord.Embed(
+        title="🐱💕 Benim Kedim!",
+        description=(
+            "İşte benim en tatlı kedim! 😻\n"
+            "Çok tatlı değil mi?! Bakışlarına dayanmak imkânsız! 🥺✨\n\n"
+            "🔗 [Pinterest'te gör](https://tr.pinterest.com/pin/886153664219557266/)"
+        ),
+        color=0xFF69B4,
+        url="https://tr.pinterest.com/pin/886153664219557266/",
+    )
+    embed.set_image(url="https://i.pinimg.com/736x/cc/08/6e/cc086e0b3a2e1f4d8b7c9a0e2f3d1b5a.jpg")
+    embed.set_footer(text="🐾 Dünyanın en tatlı kedisi — miyav! 💕")
+    await ctx.send(embed=embed)
+
+
 # ── flamingo ─────────────────────────────────────────────────────────────────
 @bot.command()
 async def flamingo(ctx):
@@ -341,6 +360,7 @@ async def yardim(ctx):
             "`!catfight @kullanıcı` — Kedi dövüşü\n"
             "`!randomcat` — Saçma kedi meme\n"
             "`!pet` — Kediyi sev\n"
+            "`!benim kedim` — Benim tatlı kedim! 💕\n"
         ),
         inline=False,
     )
