@@ -604,8 +604,18 @@ async def work(ctx):
 
 
 # TOKEN'İ ORTAM DEĞİŞKENİNDEN AL
+# Railway kullanıcıları: Railway dashboard'unda servisinizin
+# "Variables" sekmesine gidip DISCORD_TOKEN değişkenini
+# Discord bot tokeninizle ayarlamanız gerekmektedir.
+# Bkz: https://docs.railway.com/guides/variables
 token = os.environ.get("DISCORD_TOKEN")
 if not token:
-    raise RuntimeError("DISCORD_TOKEN environment variable is not set!")
+    raise RuntimeError(
+        "DISCORD_TOKEN environment variable is not set! "
+        "If you are deploying on Railway, go to your service's "
+        "'Variables' tab in the Railway dashboard and add "
+        "DISCORD_TOKEN with your Discord bot token as the value. "
+        "See: https://docs.railway.com/guides/variables"
+    )
 
-bot.run()
+bot.run(token)
