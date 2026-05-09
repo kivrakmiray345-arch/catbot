@@ -604,7 +604,7 @@ async def work(ctx):
 
 
 # TOKEN'İ ORTAM DEĞİŞKENİNDEN AL
-token = os.environ.get("")
+token = os.environ.get("DISCORD_TOKEN")
 if not token:
     raise RuntimeError("DISCORD_TOKEN environment variable is not set!")
 
