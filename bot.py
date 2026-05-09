@@ -136,8 +136,8 @@ async def leaderboard(ctx):
     await ctx.send(msg)
 
 # TOKEN'İ ORTAM DEĞİŞKENİNDEN AL
-token = os.environ.get("DISCORD_TOKEN")
+token = os.environ.get("MTUwMDQ0NzA4NzI5MTI3MzM0OQ.G7-mat.cPyxJNaua4UXdoBk5KGIvq0j45EfuK3zt0d8Bo")
 if not token:
     raise RuntimeError("DISCORD_TOKEN environment variable is not set!")
 
-bot.run(token)
+bot.run(MTUwMDQ0NzA4NzI5MTI3MzM0OQ.G7-mat.cPyxJNaua4UXdoBk5KGIvq0j45EfuK3zt0d8Bo)
