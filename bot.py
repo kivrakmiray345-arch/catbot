@@ -43,7 +43,58 @@ async def on_ready():
 
 @bot.command()
 async def cat(ctx):
-    await ctx.send("🐱 miyav!")
+    """Miyav! Rastgele komik kedi sesi ve meme."""
+    sesler = [
+        "miyav!", "meow!", "miaou!", "mrrrow!", "miyav miyav!",
+        "MIYAV!", "mreow~", "prrr... miyav!", "miyav? 👀", "miau!",
+        "nyaa~", "miyaaaaav!", "meow meow meow!", "mrrp!", "miyav 😤",
+    ]
+    ses = random.choice(sesler)
+
+    # Komik kedi meme URL listesi (yedek olarak kullanılır)
+    meme_urls = [
+        "https://i.imgur.com/LbDCmBP.jpeg",  # business cat
+        "https://i.imgur.com/Oj3GtQS.jpeg",  # grumpy cat
+        "https://i.imgur.com/vKFMOEP.jpeg",  # keyboard cat
+        "https://i.imgur.com/3GNyBme.jpeg",  # surprised pikachu cat
+        "https://i.imgur.com/sHQFRBa.jpeg",  # woman yelling at cat
+        "https://i.imgur.com/nFDHMfN.jpeg",  # cat loaf
+        "https://i.imgur.com/0Fy7Ybz.jpeg",  # cat in box
+        "https://i.imgur.com/JFHjILJ.jpeg",  # ceiling cat
+        "https://i.imgur.com/wkRNBpz.jpeg",  # cat with glasses
+        "https://i.imgur.com/5YDPQYB.jpeg",  # dramatic cat
+        "https://i.imgur.com/XgPHmqe.jpeg",  # cat judge
+        "https://i.imgur.com/hUkSoSo.jpeg",  # cat stare
+    ]
+
+    embed = discord.Embed(
+        title=f"🐱 {ses}",
+        color=0xFF9900,
+    )
+
+    # Önce cataas.com'dan komik kedi meme almayı dene
+    image_set = False
+    try:
+        async with aiohttp.ClientSession() as session:
+            # cataas: kedi + rastgele komik metin
+            tags = ["funny", "meme", "grumpy", "lol", "cute"]
+            tag = random.choice(tags)
+            url = f"https://cataas.com/cat/{tag}?json=true"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=4)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    cat_id = data.get("_id") or data.get("id")
+                    if cat_id:
+                        embed.set_image(url=f"https://cataas.com/cat/{cat_id}")
+                        image_set = True
+    except Exception:
+        pass
+
+    if not image_set:
+        embed.set_image(url=random.choice(meme_urls))
+
+    embed.set_footer(text="🐾 Kedi Bot — miyav!")
+    await ctx.send(embed=embed)
 
 @bot.command()
 async def miyav(ctx):
@@ -283,7 +334,7 @@ async def yardim(ctx):
     embed.add_field(
         name="🐾 Kedi Komutları",
         value=(
-            "`!cat` — Miyav!\n"
+            "`!cat` — Miyav + rastgele komik kedi meme!\n"
             "`!miyav` — Miyav miyav!\n"
             "`!catfact` — Rastgele kedi bilgisi\n"
             "`!catimg` — Rastgele kedi fotoğrafı\n"
