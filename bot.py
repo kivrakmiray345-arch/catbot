@@ -40,6 +40,11 @@ def set_balance(user_id, para, daily, work):
 async def on_ready():
     print(f"🐱 {bot.user} olarak giriş yapıldı!")
     print("Cat Bot aktif!")
+    activity = discord.Activity(
+        type=discord.ActivityType.listening,
+        name="!help",
+    )
+    await bot.change_presence(activity=activity)
 
 @bot.command()
 async def cat(ctx):
