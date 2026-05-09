@@ -603,6 +603,60 @@ async def work(ctx):
     )
 
 
+# ── testeoji ─────────────────────────────────────────────────────────────────
+@bot.command()
+async def testeoji(ctx):
+    """Test if the custom emoji reaction works."""
+    emoji = bot.get_emoji(1498367793827942500)
+    if emoji is None:
+        await ctx.send(
+            "❌ Emoji bulunamadı! (ID: 1498367793827942500) — "
+            "Botun sunucuda olduğundan ve 'Use External Emojis' iznine sahip olduğundan emin ol."
+        )
+        return
+    try:
+        await ctx.message.add_reaction(emoji)
+        await ctx.send(f"✅ Emoji reaksiyonu başarıyla eklendi: {emoji}")
+    except discord.Forbidden:
+        await ctx.send("❌ Hata: Botun 'Add Reactions' izni yok!")
+    except discord.HTTPException as e:
+        await ctx.send(f"❌ HTTP hatası: {e}")
+
+
+# ── on_message (ALL CAPS auto-react) ─────────────────────────────────────────
+CAPS_EMOJI_ID   = 1498367793827942500
+CAPS_EMOJI_NAME = "buneamkhjsdhklsdkhds"
+CAPS_THRESHOLD  = 0.80   # ≥80 % of letters must be uppercase
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    # Ignore messages from bots (including self)
+    if message.author.bot:
+        await bot.process_commands(message)
+        return
+
+    # Check for ALL CAPS: only consider alphabetic characters
+    letters = [c for c in message.content if c.isalpha()]
+    if len(letters) >= 3:
+        upper_ratio = sum(1 for c in letters if c.isupper()) / len(letters)
+        if upper_ratio >= CAPS_THRESHOLD:
+            emoji = bot.get_emoji(CAPS_EMOJI_ID)
+            if emoji is not None:
+                try:
+                    await message.add_reaction(emoji)
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    print(f"[on_message] Emoji reaksiyonu eklenemedi: {e}")
+            else:
+                print(
+                    f"[on_message] Emoji bulunamadı (ID: {CAPS_EMOJI_ID}). "
+                    "Botun sunucuda olduğundan emin ol."
+                )
+
+    # Always process commands so other bot commands still work
+    await bot.process_commands(message)
+
+
 # TOKEN'İ ORTAM DEĞİŞKENİNDEN AL
 # Railway kullanıcıları: Railway dashboard'unda servisinizin
 # "Variables" sekmesine gidip DISCORD_TOKEN değişkenini
