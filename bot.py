@@ -172,20 +172,23 @@ async def balance(ctx):
 # ── catfact ─────────────────────────────────────────────────────────────────
 @bot.command()
 async def catfact(ctx):
-    """Rastgele gerçek bir kedi bilgisi."""
+    """Rastgele eğlenceli bir kedi gerçeği — kedi tarzında!"""
     gercekler = [
-        "🐱 Kediler günde ortalama 12-16 saat uyur.",
-        "🐾 Bir kedinin burnu parmak izi gibi benzersizdir.",
-        "😸 Kediler tatlı tadını alamaz — tatlı reseptörleri yok!",
-        "🐱 Kediler 'miyav' sesini yalnızca insanlarla iletişim için çıkarır.",
-        "😺 Bir kedi düşerken her zaman ayakları üzerine iner — bu 'kedi hakemliği' refleksidir.",
-        "🐾 Kedilerin 32 kulak kası vardır ve kulaklarını 180 derece döndürebilirler.",
-        "😼 Kediler saatte 48 km'ye kadar koşabilir.",
-        "🙀 Bir kedinin kalp atışı dakikada 140-220 arasındadır.",
-        "🐱 Kediler koku almak için ağızlarını açar — buna 'flehmen tepkisi' denir.",
-        "😸 Dünyanın en yaşlı kedisi 38 yıl yaşadı!",
-        "🐾 Kediler mırıldanarak hem mutluluklarını hem de streslerini ifade eder.",
-        "😺 Bir kedinin iskeleti 230 kemikten oluşur; insanınki 206.",
+        "🐱 Biliyor muydun? Kediler günde 12-16 saat uyur. Yani ben şu an bile uyuyabilirdim ama sen komut yazdın. Teşekkürler...",
+        "🐾 Bir kedinin burnu parmak izi gibi tamamen benzersizdir. Benim burnum da eşsiz. Tıpkı benim gibi.",
+        "😸 Kediler tatlı tadını alamaz çünkü tatlı reseptörleri yok! Ama acı? Onu çok iyi biliriz. Özellikle Pazartesi sabahları.",
+        "🐱 Kediler 'miyav' sesini SADECE insanlarla konuşmak için çıkarır. Diğer kedilere miyavlamayız. Siz özelsiniz. Belki.",
+        "😺 Kedi düşerken her zaman ayakları üzerine iner! Buna 'kedi hakemliği refleksi' denir. Biz her zaman hazırlıklıyız. Siz değilsiniz.",
+        "🐾 Kedilerin 32 kulak kası var ve kulaklarını 180 derece döndürebilir! Arkandan konuştuğunu duyuyoruz. Her zaman.",
+        "😼 Kediler saatte 48 km koşabilir! Ama neden koşayım ki? Yatmak çok daha mantıklı.",
+        "🙀 Bir kedinin kalp atışı dakikada 140-220 arasında! Seninki de beni görünce öyle oluyor, değil mi? 😏",
+        "🐱 Kediler koku almak için ağızlarını açar — buna 'flehmen tepkisi' denir. Yani ağzımızı açık bırakırsak düşünüyoruz demektir. Saygı göster.",
+        "😸 Dünyanın en yaşlı kedisi 38 yıl yaşadı! Sırrı mı? Stres yapmamak. Benden öğrenin.",
+        "🐾 Kediler mırıldanarak hem mutluluklarını hem de streslerini ifade eder. Yani mırıldıyorsam ne hissettiğimi bilemezsin. Gizemli miyiz? Evet.",
+        "😺 Bir kedinin iskeleti 230 kemikten oluşur, insanınki 206. Daha fazla kemik = daha fazla güç. Matematik bu.",
+        "😼 Kediler uyurken bile çevrelerini takip eder. Gözlerim kapalı ama seni görüyorum. Unutma bunu.",
+        "🙀 Bir kedi ömrü boyunca ortalama 70.000 saat uyur. Bu bir kariyer hedefi, eleştirme.",
+        "😸 Kediler insanları 'büyük, beceriksiz kedi' olarak görür. Yani sen benim için sadece kötü bir kedi adayısın. Ama seni seviyorum yine de. Biraz.",
     ]
     await ctx.send(random.choice(gercekler))
 
@@ -285,11 +288,13 @@ async def yardim(ctx):
         value=(
             "`!cat` — Miyav!\n"
             "`!miyav` — Miyav miyav!\n"
-            "`!catfact` — Rastgele kedi bilgisi\n"
+            "`!catfact` — Eğlenceli kedi gerçeği\n"
             "`!catimg` — Rastgele kedi fotoğrafı\n"
             "`!catfight @kullanıcı` — Kedi dövüşü\n"
             "`!randomcat` — Saçma kedi meme\n"
             "`!pet` — Kediyi sev\n"
+            "`!kediismi` — Rastgele kedi ismi önerisi\n"
+            "`!mama` — Cat Bot ne yiyor?\n"
         ),
         inline=False,
     )
@@ -601,6 +606,60 @@ async def work(ctx):
         f"{is_adi}! Kazandın: **{kazanc}** kedi parası 💰\n"
         f"Toplam bakiye: **{new_balance}**"
     )
+
+
+# ── kediismi ─────────────────────────────────────────────────────────────────
+@bot.command()
+async def kediismi(ctx):
+    """Rastgele bir kedi ismi öner — belki tam da aradığın isimdir!"""
+    isimler = [
+        ("🐱 Pamuk", "Yumuşak, beyaz, mükemmel. Tıpkı benim gibi."),
+        ("😸 Zeytin", "Küçük, siyah, karakterli. Klasik bir seçim."),
+        ("😼 Şimşek", "Hızlı, çevik, biraz sinirli. Tanıdık geldi mi?"),
+        ("🐾 Boncuk", "Minik, sevimli, her yerde. Kaçınılmaz."),
+        ("🙀 Kaplan", "Adı büyük, cesareti... tartışmalı."),
+        ("😺 Minnoş", "Klasik. Zamansız. Biraz klişe ama işe yarıyor."),
+        ("😹 Patik", "Pati + tik. Yaratıcı değil mi? Ben buldum."),
+        ("😾 Gece", "Karanlık, gizemli, sizi saat 3'te uyandırır."),
+        ("🐱 Fıstık", "Küçük, sarı, enerjik. Dur bir saniye... bu ben miyim?"),
+        ("🐾 Aslan", "İsmi aslan ama korktuğu şey: süpürge."),
+        ("😸 Bulut", "Hafif, yumuşak, bazen kaybolur. Endişelenme, döner."),
+        ("😼 Çilek", "Tatlı görünür ama tırnar. Dikkat et."),
+        ("🙀 Mırmır", "Sürekli mırıldanır. Şikayeti var ama söylemez."),
+        ("😺 Loki", "Yaramaz, kurnaz, her şeyin sorumlusu. Ama sevimli."),
+        ("🐾 Pamukkale", "Hem pamuk hem kale. Güçlü ve yumuşak. Denge bu."),
+        ("😹 Viski", "Geceleri aktif, gündüzleri uyur. Tam bir kedi."),
+        ("😾 Kibrit", "Küçük ama tutuşunca durdurulamaz."),
+        ("🐱 Nemo", "Kaybolur, bulunur, tekrar kaybolur. Döngü bu."),
+        ("😸 Toz", "Her yerde. Her zaman. Kaçış yok."),
+        ("😼 Prens/Prenses", "Kendini öyle görüyor zaten. İsmi de öyle olsun."),
+    ]
+    isim, aciklama = random.choice(isimler)
+    await ctx.send(f"🐾 **Kedi İsim Önerisi:** {isim}\n💬 _{aciklama}_")
+
+
+# ── mama ─────────────────────────────────────────────────────────────────────
+@bot.command()
+async def mama(ctx):
+    """Cat Bot ne yiyor? Öğren!"""
+    mesajlar = [
+        "🍣 Şu an ton balığı yiyorum. Konuşma benimle.",
+        "🐟 Balık, balık, balık. Başka bir şey yok hayatta.",
+        "😸 Mama kabım doluydu. Şimdi boş. Hayat bu.",
+        "🍗 Tavuk yedim, mırıldadım, uyudum. Mükemmel gün.",
+        "😼 Mama verdin ama yanlış tarafı koydun kaseye. Yemiyorum. Prensip meselesi.",
+        "🐾 Şu an atıştırıyorum. Beni rahatsız etme lütfen. Teşekkürler.",
+        "🍤 Karides denedim. Beğendim. Ama bunu sana söylemeyeceğim. Sürpriz olsun.",
+        "😺 Mama saatim değil ama yine de yedim. Kurallar benim için geçerli değil.",
+        "🙀 Mama kabı boştu. Seni 3 saniye bekliyorum. Sonra bağırıyorum.",
+        "😹 Bugün iki kez yedim. Üçüncüsünü de düşünüyorum. Yargılama.",
+        "😾 Mama verdiler ama dün yediğimden farklıydı. Protesto ediyorum. Açım ama yemiyorum.",
+        "🐱 Mutfakta bir şeyler koktu. Araştırdım. Yedim. Pişman değilim.",
+        "🍖 Et yedim, kemikle oynadım, uyudum. Bu benim için beş yıldızlı restoran deneyimi.",
+        "😸 Mama kabına baktım. Mama kabı bana baktı. Anlaştık. Yedim.",
+        "🐟 Balık istiyorum. Şimdi. Hemen. Neden hâlâ okuyorsun bunu? Git getir.",
+    ]
+    await ctx.send(random.choice(mesajlar))
 
 
 # TOKEN'İ ORTAM DEĞİŞKENİNDEN AL
