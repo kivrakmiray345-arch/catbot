@@ -603,6 +603,27 @@ async def work(ctx):
     )
 
 
+# ── on_message: ALL CAPS reaction ────────────────────────────────────────────
+@bot.event
+async def on_message(message):
+    # Ignore messages from the bot itself
+    if message.author == bot.user:
+        await bot.process_commands(message)
+        return
+
+    # Extract only alphabetic characters to check capitalisation
+    letters = [c for c in message.content if c.isalpha()]
+
+    # React when there are at least 3 letters and ≥80 % of them are uppercase
+    if len(letters) >= 3 and sum(1 for c in letters if c.isupper()) / len(letters) >= 0.8:
+        emoji = bot.get_emoji(1498367793827942500)
+        if emoji:
+            await message.add_reaction(emoji)
+
+    # Ensure commands still work when on_message is overridden
+    await bot.process_commands(message)
+
+
 # TOKEN'İ ORTAM DEĞİŞKENİNDEN AL
 # Railway kullanıcıları: Railway dashboard'unda servisinizin
 # "Variables" sekmesine gidip DISCORD_TOKEN değişkenini
