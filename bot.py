@@ -609,3 +609,4 @@ if not token:
     raise RuntimeError("DISCORD_TOKEN environment variable is not set!")
 
 bot.run()
+bot.run()
