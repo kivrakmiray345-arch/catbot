@@ -4,11 +4,12 @@ from discord.ext import commands
 import json
 import random
 from datetime import datetime, timedelta
+import aiohttp
 
 intents = discord.Intents.default()
 intents.message_content = True
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 # Veri dosyası
 DATA_FILE = "veriler.json"
@@ -134,6 +135,473 @@ async def leaderboard(ctx):
     for i, (user_id, info) in enumerate(sıralı, 1):
         msg += f"{i}. <@{user_id}>: **{info['para']}** 💰\n"
     await ctx.send(msg)
+
+# ── 8ball ──────────────────────────────────────────────────────────────────
+@bot.command(name="8ball")
+async def eightball(ctx, *, soru: str = None):
+    """Kedi kehaneti — soruyu kediye sor!"""
+    if soru is None:
+        await ctx.send("🎱 Bir soru sormadan kehanet olmaz! `!8ball sorun nedir?`")
+        return
+
+    cevaplar = [
+        "😸 Kesinlikle evet! Kedi onayladı.",
+        "🐱 Evet, miyav!",
+        "😺 Bence öyle.",
+        "🐾 İşaretler evet diyor.",
+        "😼 Şüpheli... ama belki.",
+        "🙀 Bunu bilmiyorum, sor bakalım.",
+        "😾 Hayır, kesinlikle hayır.",
+        "🐱 Cevap bulanık, tekrar dene.",
+        "😿 Hayır, kedi reddetti.",
+        "🐾 Kesinlikle hayır! Miyav!",
+        "😸 Çok muhtemel!",
+        "😼 Pek sanmıyorum...",
+    ]
+    await ctx.send(f"🎱 **Soru:** {soru}\n**Kedi Kehaneti:** {random.choice(cevaplar)}")
+
+
+# ── balance ─────────────────────────────────────────────────────────────────
+@bot.command(name="balance")
+async def balance(ctx):
+    """Bakiyeni gör (bakiye komutunun İngilizce alias'ı)."""
+    user = get_balance(ctx.author.id)
+    await ctx.send(f"💰 Bakiyen: **{user['para']}** kedi parası")
+
+
+# ── catfact ─────────────────────────────────────────────────────────────────
+@bot.command()
+async def catfact(ctx):
+    """Rastgele gerçek bir kedi bilgisi."""
+    gercekler = [
+        "🐱 Kediler günde ortalama 12-16 saat uyur.",
+        "🐾 Bir kedinin burnu parmak izi gibi benzersizdir.",
+        "😸 Kediler tatlı tadını alamaz — tatlı reseptörleri yok!",
+        "🐱 Kediler 'miyav' sesini yalnızca insanlarla iletişim için çıkarır.",
+        "😺 Bir kedi düşerken her zaman ayakları üzerine iner — bu 'kedi hakemliği' refleksidir.",
+        "🐾 Kedilerin 32 kulak kası vardır ve kulaklarını 180 derece döndürebilirler.",
+        "😼 Kediler saatte 48 km'ye kadar koşabilir.",
+        "🙀 Bir kedinin kalp atışı dakikada 140-220 arasındadır.",
+        "🐱 Kediler koku almak için ağızlarını açar — buna 'flehmen tepkisi' denir.",
+        "😸 Dünyanın en yaşlı kedisi 38 yıl yaşadı!",
+        "🐾 Kediler mırıldanarak hem mutluluklarını hem de streslerini ifade eder.",
+        "😺 Bir kedinin iskeleti 230 kemikten oluşur; insanınki 206.",
+    ]
+    await ctx.send(random.choice(gercekler))
+
+
+# ── catfight ────────────────────────────────────────────────────────────────
+@bot.command()
+async def catfight(ctx, rakip: discord.Member = None):
+    """İki kedi arasında epik bir dövüş!"""
+    if rakip is None:
+        await ctx.send("⚔️ Kiminle dövüşeceğini belirt! `!catfight @kullanıcı`")
+        return
+    if rakip == ctx.author:
+        await ctx.send("🐱 Kendinle dövüşemezsin, bu biraz üzücü olurdu...")
+        return
+
+    kazanan = random.choice([ctx.author, rakip])
+    kaybeden = rakip if kazanan == ctx.author else ctx.author
+
+    hareketler = [
+        "pençe saldırısı",
+        "tüy savurma",
+        "miyav çığlığı",
+        "kuyruk tokadı",
+        "süper zıplama",
+        "gizli tırmalama",
+    ]
+    hareket = random.choice(hareketler)
+
+    await ctx.send(
+        f"⚔️ **KEDİ DÖVÜŞÜ BAŞLIYOR!**\n\n"
+        f"🐱 {ctx.author.mention} vs 😼 {rakip.mention}\n\n"
+        f"💥 {kazanan.mention} **{hareket}** kullandı!\n\n"
+        f"🏆 **Kazanan: {kazanan.mention}!** 🎉\n"
+        f"😿 {kaybeden.mention} yenildi ve köşeye çekildi..."
+    )
+
+
+# ── catimg ───────────────────────────────────────────────────────────────────
+@bot.command()
+async def catimg(ctx):
+    """İnternetten rastgele bir kedi fotoğrafı."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.thecatapi.com/v1/images/search", timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    url = data[0]["url"]
+                    embed = discord.Embed(title="🐱 Rastgele Kedi!", color=0xFF9900)
+                    embed.set_image(url=url)
+                    await ctx.send(embed=embed)
+                    return
+    except Exception:
+        pass
+
+    # API erişilemezse yedek
+    yedek_urls = [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Kittyply_edit1.jpg/1200px-Kittyply_edit1.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Dog_Breeds.jpg/1200px-Dog_Breeds.jpg",
+    ]
+    embed = discord.Embed(title="🐱 Rastgele Kedi!", color=0xFF9900)
+    embed.set_image(url=random.choice(yedek_urls))
+    await ctx.send(embed=embed)
+
+
+# ── flamingo ─────────────────────────────────────────────────────────────────
+@bot.command()
+async def flamingo(ctx):
+    """Flamingo sürprizi — beklenmedik bir flamingo mesajı!"""
+    mesajlar = [
+        "🦩 FLAMINGO SALDIRISI! Neden burada bir flamingo var?!",
+        "🦩 Flamingo seni izliyor... tek ayak üzerinde.",
+        "🦩 Bu bir kedi botu ama flamingo da güzel hayvan.",
+        "🦩 Pembe tüyler her yere saçıldı! Kaçın!",
+        "🦩 Flamingo: 'Ben de komut istiyorum!' — Kedi: 'Hayır.'",
+        "🦩 Beklenmedik flamingo dansı başladı! 💃",
+        "🦩 Flamingo, kedinin en büyük rakibi. Bugün flamingo kazandı.",
+        "🦩 Bir flamingo sunucuya girdi ve kimse fark etmedi.",
+    ]
+    await ctx.send(random.choice(mesajlar))
+
+
+# ── help ─────────────────────────────────────────────────────────────────────
+@bot.command(name="help")
+async def yardim(ctx):
+    """Tüm komutları listele."""
+    embed = discord.Embed(
+        title="🐱 Kedi Bot — Komut Listesi",
+        description="Tüm komutlar `!` öneki ile kullanılır.",
+        color=0xFF9900,
+    )
+
+    embed.add_field(
+        name="🐾 Kedi Komutları",
+        value=(
+            "`!cat` — Miyav!\n"
+            "`!miyav` — Miyav miyav!\n"
+            "`!catfact` — Rastgele kedi bilgisi\n"
+            "`!catimg` — Rastgele kedi fotoğrafı\n"
+            "`!catfight @kullanıcı` — Kedi dövüşü\n"
+            "`!randomcat` — Saçma kedi meme\n"
+            "`!pet` — Kediyi sev\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="💰 Para Komutları",
+        value=(
+            "`!bakiye` / `!balance` — Bakiyeni gör\n"
+            "`!daily` — Günlük para (24 saatte bir)\n"
+            "`!work` — Çalış para kazan (saatte bir)\n"
+            "`!gamble <miktar>` — Kumar oyna\n"
+            "`!rob @kullanıcı` — Soy!\n"
+            "`!leaderboard` — Zenginler sıralaması\n"
+            "`!trivia` — Bilgi yarışması, para kazan\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🎉 Eğlence Komutları",
+        value=(
+            "`!8ball <soru>` — Kedi kehaneti\n"
+            "`!mood` — Botun ruh hali\n"
+            "`!ship @kullanıcı1 @kullanıcı2` — Uyum yüzdesi\n"
+            "`!roast @kullanıcı` — Kedi değerlendirmesi\n"
+            "`!flamingo` — Flamingo sürprizi\n"
+            "`!no` — Hayır!\n"
+            "`!uyarı` — Resmi kedi uyarısı\n"
+        ),
+        inline=False,
+    )
+    embed.set_footer(text="🐱 Kedi Bot — Miyav!")
+    await ctx.send(embed=embed)
+
+
+# ── mood ─────────────────────────────────────────────────────────────────────
+@bot.command()
+async def mood(ctx):
+    """Botun bugünkü ruh halini öğren."""
+    ruh_halleri = [
+        ("😸 Mutlu", "Bugün her şey harika! Miyav!"),
+        ("😼 Sinirli", "Beni rahatsız etme, uyumak istiyorum."),
+        ("😺 Meraklı", "Bu düğmeye basarsam ne olur acaba..."),
+        ("🙀 Şaşkın", "Neden bu kadar çok insan var burada?!"),
+        ("😿 Hüzünlü", "Mama kabım boş. Hayat zor."),
+        ("😾 Asabi", "Dokunma bana. Ciddi söylüyorum."),
+        ("🐱 Sakin", "Her şey yolunda. Güneşte uzanıyorum."),
+        ("😹 Neşeli", "Hahaha! Bir şey düştü ve ben ittirdim!"),
+    ]
+    ruh_hali, aciklama = random.choice(ruh_halleri)
+    embed = discord.Embed(
+        title=f"Botun Ruh Hali: {ruh_hali}",
+        description=aciklama,
+        color=0xFF9900,
+    )
+    await ctx.send(embed=embed)
+
+
+# ── no ───────────────────────────────────────────────────────────────────────
+@bot.command()
+async def no(ctx):
+    """Hayır!"""
+    cevaplar = [
+        "😾 HAYIR.",
+        "🐱 Hayır, miyav.",
+        "😼 Kesinlikle hayır.",
+        "🙅 Hayır hayır hayır!",
+        "😤 H-A-Y-I-R.",
+        "🐾 Hayır. Son.",
+        "😾 Hayır demek ne demek biliyor musun? İşte bu.",
+    ]
+    await ctx.send(random.choice(cevaplar))
+
+
+# ── pet ──────────────────────────────────────────────────────────────────────
+@bot.command()
+async def pet(ctx):
+    """Kediyi sev — belki karşılık verir."""
+    cevaplar = [
+        f"😸 {ctx.author.mention} seni seviyor! Mırıl mırıl...",
+        f"😼 {ctx.author.mention} dokundu ama kedi kaçtı.",
+        f"🐾 {ctx.author.mention} okşadı! Kedi gözlerini kıstı.",
+        f"😺 {ctx.author.mention} sevdi! Kedi mutlu, mırıldıyor.",
+        f"🙀 {ctx.author.mention} dokundu! Kedi şaşırdı ve ısırdı!",
+        f"😾 {ctx.author.mention} yaklaştı ama kedi 'hayır' dedi.",
+        f"🐱 {ctx.author.mention} okşadı! Kedi pençe attı ama sevgiyle.",
+    ]
+    await ctx.send(random.choice(cevaplar))
+
+
+# ── randomcat ────────────────────────────────────────────────────────────────
+@bot.command()
+async def randomcat(ctx):
+    """Tamamen saçma bir kedi meme."""
+    memeler = [
+        "🐱 *kedi klavyeye basar* `asdfghjkl` — Bu bir şiir.",
+        "😸 Kedi: 'Beni besle.' Sen: 'Az önce besledim.' Kedi: 'Yalan.'",
+        "🐾 Kedi saat 3'te koşmaya başladı. Neden? Bilinmiyor. Sorma.",
+        "😼 Kedi bardağa bakıyor... bakıyor... itiyor. Tatmin oldu.",
+        "🙀 Kedi kutunun içine girdi. Kutu küçük. Kedi umursamıyor.",
+        "😺 Kedi: *bir şey düşürür* Ben: 'Neden?' Kedi: 'Çünkü yapabiliyorum.'",
+        "🐱 Kedi yatağın tam ortasına yattı. Sen kenarda uyuyacaksın.",
+        "😹 Kedi seni 3 saattir izliyor. Neden? Sır.",
+        "😾 Kedi mama istiyor. Verdin. Yemedi. Şimdi ne yapacaksın?",
+        "🐾 Kedi: *mırıldıyor* Sen: 'Mutlu musun?' Kedi: *pençe atar*",
+    ]
+    await ctx.send(random.choice(memeler))
+
+
+# ── roast ────────────────────────────────────────────────────────────────────
+@bot.command()
+async def roast(ctx, hedef: discord.Member = None):
+    """Kedi seni değerlendiriyor — acımasızca."""
+    if hedef is None:
+        hedef = ctx.author
+
+    roastlar = [
+        f"😼 {hedef.mention} — Kedi seni inceledi ve 'meh' dedi.",
+        f"😾 {hedef.mention} — Kediye göre sen bir Pazartesi sabahısın.",
+        f"🐱 {hedef.mention} — Kedi seni gördü ve uyumaya devam etti.",
+        f"😼 {hedef.mention} — Kedi seni fare ile karıştırdı. Fare daha ilginçti.",
+        f"🙀 {hedef.mention} — Kedi senden kaçtı. Bu çok şey söylüyor.",
+        f"😹 {hedef.mention} — Kedi seni değerlendirdi: 2/10, tekrar dene.",
+        f"😾 {hedef.mention} — Kedi seni gördü, kuyruk sallamadı. Bu kötü işaret.",
+        f"🐾 {hedef.mention} — Kedi seni bir mobilya olarak sınıflandırdı.",
+        f"😼 {hedef.mention} — Kedi sana baktı ve 'bu benim zamanıma değmez' dedi.",
+    ]
+    await ctx.send(random.choice(roastlar))
+
+
+# ── ship ─────────────────────────────────────────────────────────────────────
+@bot.command()
+async def ship(ctx, kisi1: discord.Member = None, kisi2: discord.Member = None):
+    """İki kullanıcı arasındaki uyumu ölç."""
+    if kisi1 is None or kisi2 is None:
+        await ctx.send("💕 İki kişi belirt! `!ship @kisi1 @kisi2`")
+        return
+
+    # Tutarlı sonuç için ID'leri kullan
+    seed = (kisi1.id + kisi2.id) % 101
+    oran = seed
+
+    if oran >= 80:
+        yorum = "💞 Mükemmel uyum! Kedi onayladı!"
+        renk = 0xFF69B4
+    elif oran >= 60:
+        yorum = "💕 İyi uyum! Devam edin."
+        renk = 0xFF9900
+    elif oran >= 40:
+        yorum = "💛 Fena değil, ama kedi şüpheli bakıyor."
+        renk = 0xFFFF00
+    elif oran >= 20:
+        yorum = "💔 Pek uyumlu değilsiniz..."
+        renk = 0xFF6600
+    else:
+        yorum = "😾 Kedi bu birlikteliği onaylamıyor."
+        renk = 0xFF0000
+
+    dolu = int(oran / 10)
+    bos = 10 - dolu
+    bar = "❤️" * dolu + "🖤" * bos
+
+    embed = discord.Embed(title="💕 Uyum Testi", color=renk)
+    embed.add_field(name="Çift", value=f"{kisi1.mention} & {kisi2.mention}", inline=False)
+    embed.add_field(name="Uyum", value=f"{bar} **%{oran}**", inline=False)
+    embed.add_field(name="Yorum", value=yorum, inline=False)
+    await ctx.send(embed=embed)
+
+
+# ── trivia ───────────────────────────────────────────────────────────────────
+TRIVIA_SORULARI = [
+    {
+        "soru": "Kediler günde kaç saat uyur?",
+        "cevap": ["12", "16", "12-16"],
+        "ipucu": "10 ile 20 arasında bir sayı aralığı.",
+        "odul": 30,
+    },
+    {
+        "soru": "Kedilerin kaç kulak kası vardır?",
+        "cevap": ["32"],
+        "ipucu": "30'dan fazla.",
+        "odul": 40,
+    },
+    {
+        "soru": "Kediler hangi tadı alamaz?",
+        "cevap": ["tatlı", "tatli", "şeker", "seker"],
+        "ipucu": "Çocukların en sevdiği tat.",
+        "odul": 35,
+    },
+    {
+        "soru": "Bir kedinin iskeleti kaç kemikten oluşur?",
+        "cevap": ["230"],
+        "ipucu": "200'den fazla.",
+        "odul": 50,
+    },
+    {
+        "soru": "Kediler saatte kaç km koşabilir? (yaklaşık)",
+        "cevap": ["48", "48 km"],
+        "ipucu": "40 ile 50 arasında.",
+        "odul": 45,
+    },
+    {
+        "soru": "Kediler 'miyav' sesini kimlerle iletişim için çıkarır?",
+        "cevap": ["insanlar", "insan", "insanlarla"],
+        "ipucu": "Diğer kedilerle değil...",
+        "odul": 25,
+    },
+]
+
+
+@bot.command()
+async def trivia(ctx):
+    """Kedi bilgi yarışması — doğru cevapla para kazan!"""
+    soru_data = random.choice(TRIVIA_SORULARI)
+
+    embed = discord.Embed(
+        title="🧠 Kedi Bilgi Yarışması",
+        description=soru_data["soru"],
+        color=0x00BFFF,
+    )
+    embed.add_field(name="💡 İpucu", value=soru_data["ipucu"], inline=False)
+    embed.add_field(name="💰 Ödül", value=f"{soru_data['odul']} kedi parası", inline=False)
+    embed.set_footer(text="30 saniye içinde cevapla!")
+    await ctx.send(embed=embed)
+
+    def kontrol(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        mesaj = await bot.wait_for("message", timeout=30.0, check=kontrol)
+        verilen = mesaj.content.strip().lower()
+        dogru_cevaplar = [c.lower() for c in soru_data["cevap"]]
+
+        if verilen in dogru_cevaplar:
+            user = get_balance(ctx.author.id)
+            new_balance = user["para"] + soru_data["odul"]
+            set_balance(ctx.author.id, new_balance, user["daily"], user["work"])
+            await ctx.send(
+                f"✅ **Doğru!** +{soru_data['odul']} kedi parası kazandın! "
+                f"Toplam: **{new_balance}** 💰"
+            )
+        else:
+            dogru = soru_data["cevap"][0]
+            await ctx.send(f"❌ **Yanlış!** Doğru cevap: **{dogru}** 😿")
+    except Exception:
+        await ctx.send("⏰ Süre doldu! Cevap veremedin. 😿")
+
+
+# ── uyarı ────────────────────────────────────────────────────────────────────
+@bot.command(name="uyarı")
+async def uyari(ctx, hedef: discord.Member = None):
+    """Resmi kedi uyarısı ver."""
+    if hedef is None:
+        hedef = ctx.author
+
+    uyarilar = [
+        "miyav sesini çok yüksek çıkarmak",
+        "kedi mamasını geç vermek",
+        "kediyi uyurken rahatsız etmek",
+        "kedi tüylerini temizlememek",
+        "kediye 'köpek' demek",
+        "kedi kutusunu paylaşmayı reddetmek",
+        "kediyi yeterince övmemek",
+        "kedi fotoğrafı çekmeden geçmek",
+    ]
+
+    embed = discord.Embed(
+        title="⚠️ RESMİ KEDİ UYARISI ⚠️",
+        description=f"{hedef.mention} resmi olarak uyarılmıştır.",
+        color=0xFF0000,
+    )
+    embed.add_field(name="Suç", value=random.choice(uyarilar), inline=False)
+    embed.add_field(name="Veren", value="🐱 Kedi Mahkemesi", inline=False)
+    embed.add_field(name="Ceza", value="Bir hafta boyunca kedi fotoğrafı bakma yasağı.", inline=False)
+    embed.set_footer(text="Bu uyarı kedi yasaları çerçevesinde verilmiştir.")
+    await ctx.send(embed=embed)
+
+
+# ── work ─────────────────────────────────────────────────────────────────────
+@bot.command()
+async def work(ctx):
+    """Çalış para kazan — saatte bir kullanılabilir."""
+    user = get_balance(ctx.author.id)
+    now = datetime.now()
+
+    if user["work"]:
+        last_work = datetime.fromisoformat(user["work"])
+        kalan = (last_work + timedelta(hours=1)) - now
+        if kalan.total_seconds() > 0:
+            dakika = int(kalan.total_seconds() // 60)
+            saniye = int(kalan.total_seconds() % 60)
+            await ctx.send(
+                f"⏰ Çok yoruldun! **{dakika}dk {saniye}sn** sonra tekrar çalışabilirsin."
+            )
+            return
+
+    isler = [
+        ("🐟 Balık sattın", random.randint(10, 40)),
+        ("🧶 Yumak sardın", random.randint(10, 40)),
+        ("📦 Kedi maması taşıdın", random.randint(10, 40)),
+        ("🖼️ Kedi portresi çizdin", random.randint(15, 50)),
+        ("🎤 Kedi şarkısı söyledin", random.randint(10, 35)),
+        ("🧹 Kedi tüyü süpürdün", random.randint(10, 30)),
+        ("📸 Kedi fotoğrafı çektin", random.randint(15, 45)),
+        ("🏠 Kedi oteli işlettin", random.randint(20, 60)),
+    ]
+    is_adi, kazanc = random.choice(isler)
+    new_balance = user["para"] + kazanc
+    set_balance(ctx.author.id, new_balance, user["daily"], now.isoformat())
+    await ctx.send(
+        f"{is_adi}! Kazandın: **{kazanc}** kedi parası 💰\n"
+        f"Toplam bakiye: **{new_balance}**"
+    )
+
 
 # TOKEN'İ ORTAM DEĞİŞKENİNDEN AL
 token = os.environ.get("")
