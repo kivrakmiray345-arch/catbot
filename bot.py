@@ -747,6 +747,7 @@ async def slash_help(interaction: discord.Interaction):
             "`/catfact` — Rastgele kedi bilgisi\n"
             "`/catimg` — Rastgele kedi fotoğrafı\n"
             "`/mood` — Botun ruh hali\n"
+            "`/benim-kedim` — Benim kedim fotoğrafını göster\n"
         ),
         inline=False,
     )
@@ -1087,6 +1088,18 @@ async def slash_leaderboard(interaction: discord.Interaction):
     for i, (user_id, info) in enumerate(sıralı, 1):
         msg += f"{i}. <@{user_id}>: **{info['para']}** 💰\n"
     await interaction.response.send_message(msg)
+
+
+# ── /benim-kedim ──────────────────────────────────────────────────────────────
+@tree.command(name="benim-kedim", description="Benim kedim fotoğrafını göster 🐱")
+async def slash_benim_kedim(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🐱 Benim Kedim!",
+        color=0xFF9900,
+    )
+    embed.set_image(url="https://i.pinimg.com/736x/b0/a7/5e/b0a75e2e3b5b8e4e1e6e7e8e9e0e1e2e.jpg")
+    embed.set_footer(text="🐾 Kedi Bot — miyav!")
+    await interaction.response.send_message(embed=embed)
 
 
 # ── on_message (ALL CAPS auto-react) ─────────────────────────────────────────
