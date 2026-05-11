@@ -1,11 +1,14 @@
 import os
+import json
+import random
+from datetime import datetime, timedelta, timezone
+
+import aiohttp
 import discord
 from discord import app_commands
 from discord.ext import commands
-import json
-import random
-from datetime import datetime, timedelta
-import aiohttp
+
+import db
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -26,22 +29,36 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-def get_balance(user_id):
-    data = load_data()
-    if str(user_id) not in data:
-        data[str(user_id)] = {"para": 100, "daily": None, "work": None}
-        save_data(data)
-    return data[str(user_id)]
+async def get_balance(user_id):
+    """Return a dict with 'para', 'daily', 'work' — mirrors old JSON shape."""
+    row = await db.get_user(user_id)
+    return {"para": row["coins"], "daily": row["daily"], "work": row["work"]}
 
-def set_balance(user_id, para, daily, work):
-    data = load_data()
-    data[str(user_id)] = {"para": para, "daily": daily, "work": work}
-    save_data(data)
+async def set_balance(user_id, para, daily, work):
+    await db.update_user(user_id, coins=para, daily=daily, work=work)
 
 @bot.event
 async def on_ready():
     print(f"🐱 {bot.user} olarak giriş yapıldı!")
     print("Cat Bot aktif!")
+
+    # ── Database init ──────────────────────────────────────────────────────
+    try:
+        await db.init_db()
+        print("✅ PostgreSQL bağlantısı kuruldu ve tablolar hazır.")
+    except Exception as e:
+        print(f"❌ Veritabanı başlatılamadı: {e}")
+
+    # ── One-time JSON migration ────────────────────────────────────────────
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                legacy = json.load(f)
+            await db.migrate_json(legacy)
+            print(f"✅ {len(legacy)} kullanıcı JSON'dan PostgreSQL'e taşındı.")
+        except Exception as e:
+            print(f"⚠️  JSON migrasyonu başarısız: {e}")
+
     try:
         synced = await tree.sync()
         print(f"✅ {len(synced)} slash komutu senkronize edildi.")
@@ -109,12 +126,12 @@ async def miyav(ctx):
 
 @bot.command()
 async def bakiye(ctx):
-    user = get_balance(ctx.author.id)
+    user = await get_balance(ctx.author.id)
     await ctx.send(f"💰 Bakiyen: **{user['para']}** kedi parası")
 
 @bot.command()
 async def daily(ctx):
-    user = get_balance(ctx.author.id)
+    user = await get_balance(ctx.author.id)
     now = datetime.now()
     
     if user['daily']:
@@ -126,7 +143,7 @@ async def daily(ctx):
     
     para = random.randint(20, 100)
     new_balance = user['para'] + para
-    set_balance(ctx.author.id, new_balance, now.isoformat(), user['work'])
+    await set_balance(ctx.author.id, new_balance, now.isoformat(), user['work'])
     await ctx.send(f"💼 Çalıştın! Kazandın: **{para}** kedi parası")
 
 @bot.command()
@@ -135,7 +152,7 @@ async def gamble(ctx, miktar: int = None):
         await ctx.send("🎰 Kaç para yatırmak istiyon? `!gamble 100`")
         return
     
-    user = get_balance(ctx.author.id)
+    user = await get_balance(ctx.author.id)
     
     if miktar > user['para']:
         await ctx.send(f"❌ Yetersiz para! Bakiye: {user['para']}")
@@ -148,11 +165,11 @@ async def gamble(ctx, miktar: int = None):
     if random.random() < 0.5:
         kazanc = miktar * 2
         new_balance = user['para'] + kazanc - miktar
-        set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
+        await set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
         await ctx.send(f"🎉 Kazandın! +{kazanc} kedi parası! Toplam: {new_balance}")
     else:
         new_balance = user['para'] - miktar
-        set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
+        await set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
         await ctx.send(f"😢 Kaybettin... -{miktar} kedi parası. Kalan: {new_balance}")
 
 @bot.command()
@@ -161,8 +178,8 @@ async def rob(ctx, kullanıcı: discord.Member = None):
         await ctx.send("❌ Kimi soyacağını belirt! `!rob @kullanıcı`")
         return
     
-    user = get_balance(ctx.author.id)
-    victim = get_balance(kullanıcı.id)
+    user = await get_balance(ctx.author.id)
+    victim = await get_balance(kullanıcı.id)
     
     if victim['para'] < 10:
         await ctx.send("❌ Bu kişinin parası az, soyamazsın!")
@@ -172,26 +189,30 @@ async def rob(ctx, kullanıcı: discord.Member = None):
         çalınan = random.randint(10, min(100, victim['para']))
         new_balance = user['para'] + çalınan
         new_victim = victim['para'] - çalınan
-        set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
-        set_balance(kullanıcı.id, new_victim, victim['daily'], victim['work'])
+        await set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
+        await set_balance(kullanıcı.id, new_victim, victim['daily'], victim['work'])
         await ctx.send(f"😈 Soydun! +{çalınan} kedi parası!")
     else:
         ceza = random.randint(20, 50)
         new_balance = user['para'] - ceza
-        set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
+        await set_balance(ctx.author.id, new_balance, user['daily'], user['work'])
         await ctx.send(f"🚨 Yakalandın! -{ceza} kedi parası ceza ödedin!")
 
 @bot.command()
 async def leaderboard(ctx):
-    data = load_data()
-    if not data:
+    if db.pool is None:
+        await ctx.send("📊 Veritabanı henüz hazır değil!")
+        return
+    async with db.pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT user_id, coins FROM users ORDER BY coins DESC LIMIT 5"
+        )
+    if not rows:
         await ctx.send("📊 Henüz kimse para kazanmamış!")
         return
-    
-    sıralı = sorted(data.items(), key=lambda x: x[1]['para'], reverse=True)[:5]
     msg = "🏆 **EN ZENGİN KEDİ PARASI SAHİPLERİ**\n\n"
-    for i, (user_id, info) in enumerate(sıralı, 1):
-        msg += f"{i}. <@{user_id}>: **{info['para']}** 💰\n"
+    for i, row in enumerate(rows, 1):
+        msg += f"{i}. <@{row['user_id']}>: **{row['coins']}** 💰\n"
     await ctx.send(msg)
 
 # ── 8ball ──────────────────────────────────────────────────────────────────
@@ -223,7 +244,7 @@ async def eightball(ctx, *, soru: str = None):
 @bot.command(name="balance")
 async def balance(ctx):
     """Bakiyeni gör (bakiye komutunun İngilizce alias'ı)."""
-    user = get_balance(ctx.author.id)
+    user = await get_balance(ctx.author.id)
     await ctx.send(f"💰 Bakiyen: **{user['para']}** kedi parası")
 
 
@@ -349,6 +370,16 @@ async def yardim(ctx):
             "`!catfight @kullanıcı` — Kedi dövüşü\n"
             "`!randomcat` — Saçma kedi meme\n"
             "`!pet` — Kediyi sev\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🎮 Oyun Komutları",
+        value=(
+            "`!catch` — Rastgele kedi yakala! XP + para kazan\n"
+            "`!pack <tier>` — Paket aç (wooden/stone/bronze/silver/gold/platinum)\n"
+            "`!level` — Seviye, XP ve ilerleme çubuğunu gör\n"
+            "`!inventory` / `!inv` — Yakaladığın kedileri gör\n"
         ),
         inline=False,
     )
@@ -581,9 +612,9 @@ async def trivia(ctx):
         dogru_cevaplar = [c.lower() for c in soru_data["cevap"]]
 
         if verilen in dogru_cevaplar:
-            user = get_balance(ctx.author.id)
+            user = await get_balance(ctx.author.id)
             new_balance = user["para"] + soru_data["odul"]
-            set_balance(ctx.author.id, new_balance, user["daily"], user["work"])
+            await set_balance(ctx.author.id, new_balance, user["daily"], user["work"])
             await ctx.send(
                 f"✅ **Doğru!** +{soru_data['odul']} kedi parası kazandın! "
                 f"Toplam: **{new_balance}** 💰"
@@ -629,7 +660,7 @@ async def uyari(ctx, hedef: discord.Member = None):
 @bot.command()
 async def work(ctx):
     """Çalış para kazan — saatte bir kullanılabilir."""
-    user = get_balance(ctx.author.id)
+    user = await get_balance(ctx.author.id)
     now = datetime.now()
 
     if user["work"]:
@@ -655,11 +686,263 @@ async def work(ctx):
     ]
     is_adi, kazanc = random.choice(isler)
     new_balance = user["para"] + kazanc
-    set_balance(ctx.author.id, new_balance, user["daily"], now.isoformat())
+    await set_balance(ctx.author.id, new_balance, user["daily"], now.isoformat())
     await ctx.send(
         f"{is_adi}! Kazandın: **{kazanc}** kedi parası 💰\n"
         f"Toplam bakiye: **{new_balance}**"
     )
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# GAME COMMANDS  — catch, pack, level, inventory
+# ════════════════════════════════════════════════════════════════════════════
+
+# Rarity config
+RARITY_WEIGHTS = {"Common": 60, "Rare": 30, "Epic": 10}
+RARITY_COINS   = {"Common": 5, "Rare": 10, "Epic": 15}
+RARITY_EMOJI   = {"Common": "⬜", "Rare": "🟦", "Epic": "🟪"}
+CATCH_XP       = 10
+CATCH_COOLDOWN = 5  # seconds
+
+# Pack config
+PACK_TIERS = {
+    "wooden":   {"cost": 50,   "base_rarity": "Common", "label": "🪵 Ahşap Paket"},
+    "stone":    {"cost": 100,  "base_rarity": "Common", "label": "🪨 Taş Paket"},
+    "bronze":   {"cost": 200,  "base_rarity": "Common", "label": "🥉 Bronz Paket"},
+    "silver":   {"cost": 400,  "base_rarity": "Rare",   "label": "🥈 Gümüş Paket"},
+    "gold":     {"cost": 800,  "base_rarity": "Rare",   "label": "🥇 Altın Paket"},
+    "platinum": {"cost": 1500, "base_rarity": "Epic",   "label": "💎 Platin Paket"},
+}
+RARITY_ORDER = ["Common", "Rare", "Epic"]
+PITY_THRESHOLD = 10  # pulls without upgrade → guaranteed upgrade
+
+
+def _rarity_upgrade(rarity: str) -> str:
+    """Return the next rarity tier, or the same if already at max."""
+    idx = RARITY_ORDER.index(rarity)
+    return RARITY_ORDER[min(idx + 1, len(RARITY_ORDER) - 1)]
+
+
+async def _pick_cat(rarity: str):
+    """Pick a random cat of the given rarity from the DB."""
+    cats = await db.get_cats_by_rarity(rarity)
+    if not cats:
+        return None
+    return random.choice(cats)
+
+
+def _xp_bar(xp: int, level: int, segments: int = 10) -> str:
+    needed = db.xp_needed(level)
+    filled = int((xp / needed) * segments)
+    return "█" * filled + "░" * (segments - filled)
+
+
+# ── !catch ────────────────────────────────────────────────────────────────────
+@bot.command(name="catch")
+@commands.cooldown(1, CATCH_COOLDOWN, commands.BucketType.user)
+async def catch_cmd(ctx):
+    """Rastgele bir kedi yakala! XP ve para kazan."""
+    # Pick rarity
+    rarity = random.choices(
+        list(RARITY_WEIGHTS.keys()),
+        weights=list(RARITY_WEIGHTS.values()),
+        k=1,
+    )[0]
+
+    cat = await _pick_cat(rarity)
+    if cat is None:
+        await ctx.send("😿 Şu an yakalanacak kedi yok! Daha sonra tekrar dene.")
+        return
+
+    coins_earned = RARITY_COINS[rarity]
+
+    # Update DB
+    new_coins = await db.add_coins(ctx.author.id, coins_earned)
+    new_xp, new_level, leveled_up = await db.add_xp(ctx.author.id, CATCH_XP)
+    await db.add_to_inventory(ctx.author.id, cat["cat_id"], cat["name"], rarity)
+
+    embed = discord.Embed(
+        title=f"{cat['emoji']} {cat['name']} yakalandı!",
+        color=0x9B59B6 if rarity == "Epic" else (0x3498DB if rarity == "Rare" else 0x95A5A6),
+    )
+    embed.add_field(name="Nadirlik", value=f"{RARITY_EMOJI[rarity]} {rarity}", inline=True)
+    embed.add_field(name="XP Kazanıldı", value=f"+{CATCH_XP} XP", inline=True)
+    embed.add_field(name="Para Kazanıldı", value=f"+{coins_earned} 💰", inline=True)
+    embed.add_field(
+        name=f"Seviye {new_level} — XP",
+        value=f"{_xp_bar(new_xp, new_level)} {new_xp}/{db.xp_needed(new_level)}",
+        inline=False,
+    )
+    embed.set_footer(text=f"Toplam bakiye: {new_coins} 💰")
+
+    if leveled_up:
+        embed.description = f"🎉 **SEVİYE ATLADIN! Seviye {new_level}!** 🎉"
+
+    await ctx.send(embed=embed)
+
+
+@catch_cmd.error
+async def catch_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(
+            f"⏰ Kedi kaçtı! **{error.retry_after:.1f}sn** sonra tekrar dene.",
+            delete_after=5,
+        )
+
+
+# ── !pack ─────────────────────────────────────────────────────────────────────
+@bot.command(name="pack")
+async def pack_cmd(ctx, tier: str = None):
+    """Paket aç! Kedi kazan. Kullanım: !pack <tier>"""
+    if tier is None:
+        tiers_info = "\n".join(
+            f"`{k}` — {v['label']} ({v['cost']} 💰)" for k, v in PACK_TIERS.items()
+        )
+        embed = discord.Embed(
+            title="📦 Paket Seçenekleri",
+            description=f"Kullanım: `!pack <tier>`\n\n{tiers_info}",
+            color=0xFF9900,
+        )
+        await ctx.send(embed=embed)
+        return
+
+    tier = tier.lower()
+    if tier not in PACK_TIERS:
+        await ctx.send(
+            f"❌ Geçersiz paket! Seçenekler: {', '.join(f'`{t}`' for t in PACK_TIERS)}"
+        )
+        return
+
+    config = PACK_TIERS[tier]
+    cost = config["cost"]
+    base_rarity = config["base_rarity"]
+
+    user_row = await db.get_user(ctx.author.id)
+    if user_row["coins"] < cost:
+        await ctx.send(
+            f"❌ Yetersiz para! Bu paket **{cost}** 💰 tutar. "
+            f"Bakiyen: **{user_row['coins']}** 💰"
+        )
+        return
+
+    # Deduct cost
+    await db.add_coins(ctx.author.id, -cost)
+
+    # Pity check — if pity_counter >= PITY_THRESHOLD, guarantee an upgrade
+    pity = user_row["pity_counter"]
+    guaranteed_upgrade = pity >= PITY_THRESHOLD
+
+    # Determine rarity
+    base_idx = RARITY_ORDER.index(base_rarity)
+    if guaranteed_upgrade:
+        # Force one tier higher than base
+        rarity = RARITY_ORDER[min(base_idx + 1, len(RARITY_ORDER) - 1)]
+        await db.reset_pity(ctx.author.id)
+        pity_note = "✨ **Pity aktif! Garantili yükseltme!**"
+    else:
+        # Roll within available tiers (base and above)
+        available = RARITY_ORDER[base_idx:]
+        # Weight: 60% base, 30% +1, 10% +2 (capped to available)
+        tier_weights = [60, 30, 10][: len(available)]
+        rarity = random.choices(available, weights=tier_weights, k=1)[0]
+        pity_note = None
+
+        if rarity == base_rarity:
+            # No upgrade — increment pity
+            await db.increment_pity(ctx.author.id)
+        else:
+            # Upgrade happened — reset pity
+            await db.reset_pity(ctx.author.id)
+
+    cat = await _pick_cat(rarity)
+    if cat is None:
+        await ctx.send("😿 Paket açılamadı, kedi bulunamadı!")
+        return
+
+    await db.add_to_inventory(ctx.author.id, cat["cat_id"], cat["name"], rarity)
+    new_coins = await db.get_coins(ctx.author.id)
+    new_pity = await db.get_pity(ctx.author.id)
+
+    embed = discord.Embed(
+        title=f"{config['label']} Açıldı!",
+        color=0x9B59B6 if rarity == "Epic" else (0x3498DB if rarity == "Rare" else 0x95A5A6),
+    )
+    if pity_note:
+        embed.description = pity_note
+    embed.add_field(name="Kedi", value=f"{cat['emoji']} **{cat['name']}**", inline=True)
+    embed.add_field(name="Nadirlik", value=f"{RARITY_EMOJI[rarity]} {rarity}", inline=True)
+    embed.add_field(name="Kalan Bakiye", value=f"{new_coins} 💰", inline=True)
+    embed.set_footer(text=f"Pity sayacı: {new_pity}/{PITY_THRESHOLD}")
+    await ctx.send(embed=embed)
+
+
+# ── !level ────────────────────────────────────────────────────────────────────
+@bot.command(name="level")
+async def level_cmd(ctx):
+    """Seviyeni, XP'ni ve ilerleme çubuğunu göster."""
+    row = await db.get_user(ctx.author.id)
+    xp = row["xp"]
+    level = row["level"]
+    coins = row["coins"]
+    needed = db.xp_needed(level)
+    total_cats = await db.get_inventory_count(ctx.author.id)
+
+    bar = _xp_bar(xp, level)
+
+    embed = discord.Embed(
+        title=f"🐾 {ctx.author.display_name} — Seviye {level}",
+        color=0xFF9900,
+    )
+    embed.add_field(
+        name="XP İlerlemesi",
+        value=f"{bar} **{xp}/{needed}**",
+        inline=False,
+    )
+    embed.add_field(name="💰 Bakiye", value=f"{coins} kedi parası", inline=True)
+    embed.add_field(name="🐱 Yakalanan Kedi", value=str(total_cats), inline=True)
+    embed.set_footer(text=f"Sonraki seviye için {needed - xp} XP gerekiyor.")
+    await ctx.send(embed=embed)
+
+
+# ── !inventory / !inv ─────────────────────────────────────────────────────────
+PAGE_SIZE = 5
+
+@bot.command(name="inventory", aliases=["inv"])
+async def inventory_cmd(ctx, page: int = 1):
+    """Yakaladığın kedileri göster. Kullanım: !inventory [sayfa]"""
+    total = await db.get_inventory_count(ctx.author.id)
+    if total == 0:
+        await ctx.send("🎒 Envantern boş! `!catch` ile kedi yakala.")
+        return
+
+    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = max(1, min(page, total_pages))
+    offset = (page - 1) * PAGE_SIZE
+
+    cats = await db.get_inventory(ctx.author.id, offset=offset, limit=PAGE_SIZE)
+    breakdown = await db.get_rarity_breakdown(ctx.author.id)
+
+    embed = discord.Embed(
+        title=f"🎒 {ctx.author.display_name} — Envanter",
+        color=0xFF9900,
+    )
+
+    lines = []
+    for cat in cats:
+        ts = cat["caught_at"].strftime("%d.%m.%Y")
+        lines.append(
+            f"{RARITY_EMOJI.get(cat['rarity'], '❓')} **{cat['cat_name']}** "
+            f"— {cat['rarity']} *(yakalandı: {ts})*"
+        )
+    embed.description = "\n".join(lines)
+
+    breakdown_str = " | ".join(
+        f"{RARITY_EMOJI.get(r, r)} {r}: {breakdown.get(r, 0)}"
+        for r in RARITY_ORDER
+    )
+    embed.add_field(name="Nadirlik Dağılımı", value=breakdown_str, inline=False)
+    embed.set_footer(text=f"Sayfa {page}/{total_pages} — Toplam {total} kedi")
+    await ctx.send(embed=embed)
 
 
 # ── testeoji ─────────────────────────────────────────────────────────────────
@@ -753,6 +1036,16 @@ async def slash_help(interaction: discord.Interaction):
         inline=False,
     )
     embed.add_field(
+        name="🎮 Oyun Komutları",
+        value=(
+            "`!catch` — Rastgele kedi yakala! XP + para kazan\n"
+            "`!pack <tier>` — Paket aç (wooden/stone/bronze/silver/gold/platinum)\n"
+            "`!level` — Seviye, XP ve ilerleme çubuğunu gör\n"
+            "`!inventory` / `!inv` — Yakaladığın kedileri gör\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
         name="💰 Para Komutları",
         value=(
             "`/bakiye` veya `/balance` — Bakiyeni gör\n"
@@ -788,7 +1081,7 @@ async def slash_help(interaction: discord.Interaction):
 # ── /bakiye ───────────────────────────────────────────────────────────────────
 @tree.command(name="bakiye", description="Kedi parası bakiyeni gösterir.")
 async def slash_bakiye(interaction: discord.Interaction):
-    user = get_balance(interaction.user.id)
+    user = await get_balance(interaction.user.id)
     await interaction.response.send_message(
         f"💰 Bakiyen: **{user['para']}** kedi parası"
     )
@@ -797,7 +1090,7 @@ async def slash_bakiye(interaction: discord.Interaction):
 # ── /balance ──────────────────────────────────────────────────────────────────
 @tree.command(name="balance", description="Show your cat coin balance (English alias for /bakiye).")
 async def slash_balance(interaction: discord.Interaction):
-    user = get_balance(interaction.user.id)
+    user = await get_balance(interaction.user.id)
     await interaction.response.send_message(
         f"💰 Balance: **{user['para']}** cat coins"
     )
@@ -806,7 +1099,7 @@ async def slash_balance(interaction: discord.Interaction):
 # ── /daily ────────────────────────────────────────────────────────────────────
 @tree.command(name="daily", description="Günlük para ödülünü al (24 saatte bir).")
 async def slash_daily(interaction: discord.Interaction):
-    user = get_balance(interaction.user.id)
+    user = await get_balance(interaction.user.id)
     now = datetime.now()
     if user["daily"]:
         last_daily = datetime.fromisoformat(user["daily"])
@@ -818,7 +1111,7 @@ async def slash_daily(interaction: discord.Interaction):
             return
     para = random.randint(20, 100)
     new_balance = user["para"] + para
-    set_balance(interaction.user.id, new_balance, now.isoformat(), user["work"])
+    await set_balance(interaction.user.id, new_balance, now.isoformat(), user["work"])
     await interaction.response.send_message(
         f"💼 Günlük ödülünü aldın! Kazandın: **{para}** kedi parası 🎉\n"
         f"Toplam bakiye: **{new_balance}**"
@@ -828,7 +1121,7 @@ async def slash_daily(interaction: discord.Interaction):
 # ── /work ─────────────────────────────────────────────────────────────────────
 @tree.command(name="work", description="Çalış para kazan (saatte bir kullanılabilir).")
 async def slash_work(interaction: discord.Interaction):
-    user = get_balance(interaction.user.id)
+    user = await get_balance(interaction.user.id)
     now = datetime.now()
     if user["work"]:
         last_work = datetime.fromisoformat(user["work"])
@@ -852,7 +1145,7 @@ async def slash_work(interaction: discord.Interaction):
     ]
     is_adi, kazanc = random.choice(isler)
     new_balance = user["para"] + kazanc
-    set_balance(interaction.user.id, new_balance, user["daily"], now.isoformat())
+    await set_balance(interaction.user.id, new_balance, user["daily"], now.isoformat())
     await interaction.response.send_message(
         f"{is_adi}! Kazandın: **{kazanc}** kedi parası 💰\n"
         f"Toplam bakiye: **{new_balance}**"
@@ -863,7 +1156,7 @@ async def slash_work(interaction: discord.Interaction):
 @tree.command(name="gamble", description="Kumar oyna! Kazanırsan 2 katını al, kaybedersen gider.")
 @app_commands.describe(miktar="Kumar oynamak istediğin kedi parası miktarı")
 async def slash_gamble(interaction: discord.Interaction, miktar: int):
-    user = get_balance(interaction.user.id)
+    user = await get_balance(interaction.user.id)
     if miktar <= 0:
         await interaction.response.send_message("❌ Geçersiz miktar!", ephemeral=True)
         return
@@ -875,13 +1168,13 @@ async def slash_gamble(interaction: discord.Interaction, miktar: int):
     if random.random() < 0.5:
         kazanc = miktar * 2
         new_balance = user["para"] + kazanc - miktar
-        set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
+        await set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
         await interaction.response.send_message(
             f"🎉 Kazandın! +**{kazanc}** kedi parası! Toplam: **{new_balance}**"
         )
     else:
         new_balance = user["para"] - miktar
-        set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
+        await set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
         await interaction.response.send_message(
             f"😢 Kaybettin... -**{miktar}** kedi parası. Kalan: **{new_balance}**"
         )
@@ -1063,9 +1356,9 @@ async def slash_trivia(interaction: discord.Interaction):
         verilen = mesaj.content.strip().lower()
         dogru_cevaplar = [c.lower() for c in soru_data["cevap"]]
         if verilen in dogru_cevaplar:
-            user = get_balance(interaction.user.id)
+            user = await get_balance(interaction.user.id)
             new_balance = user["para"] + soru_data["odul"]
-            set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
+            await set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
             await interaction.followup.send(
                 f"✅ **Doğru!** +{soru_data['odul']} kedi parası kazandın! "
                 f"Toplam: **{new_balance}** 💰"
@@ -1080,14 +1373,19 @@ async def slash_trivia(interaction: discord.Interaction):
 # ── /leaderboard ──────────────────────────────────────────────────────────────
 @tree.command(name="leaderboard", description="En zengin kedi parası sahiplerini gösterir.")
 async def slash_leaderboard(interaction: discord.Interaction):
-    data = load_data()
-    if not data:
+    if db.pool is None:
+        await interaction.response.send_message("📊 Veritabanı henüz hazır değil!")
+        return
+    async with db.pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT user_id, coins FROM users ORDER BY coins DESC LIMIT 5"
+        )
+    if not rows:
         await interaction.response.send_message("📊 Henüz kimse para kazanmamış!")
         return
-    sıralı = sorted(data.items(), key=lambda x: x[1]["para"], reverse=True)[:5]
     msg = "🏆 **EN ZENGİN KEDİ PARASI SAHİPLERİ**\n\n"
-    for i, (user_id, info) in enumerate(sıralı, 1):
-        msg += f"{i}. <@{user_id}>: **{info['para']}** 💰\n"
+    for i, row in enumerate(rows, 1):
+        msg += f"{i}. <@{row['user_id']}>: **{row['coins']}** 💰\n"
     await interaction.response.send_message(msg)
 
 
