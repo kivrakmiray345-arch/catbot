@@ -1093,9 +1093,9 @@ async def slash_leaderboard(interaction: discord.Interaction):
 
 # ── /benim-kedim ──────────────────────────────────────────────────────────────
 # ── /benim-kedim ────────────────────────────────────────────────────────────
-@tree.command(name="benim-kedim", description="Benim kedim fotoğrafını göster 🐱")
-async def slash_benim_kedim(interaction: discord.Interaction):
-    embed = discord.Embed(
+@tree.command name="benim-kedim", description="Benim kedim fotoğrafını göster 🐱
+async def slash_benim_kedim interaction: discord.Interaction:
+    embed = discord.Embed
         title="🐱 Benim Kedim!",
         color=0xFF9900,
     )
