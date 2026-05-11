@@ -1,5 +1,6 @@
 import os
 import discord
+from discord import app_commands
 from discord.ext import commands
 import json
 import random
@@ -10,6 +11,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
+tree = bot.tree  # app_commands.CommandTree attached to the bot
 
 # Veri dosyası
 DATA_FILE = "veriler.json"
@@ -40,6 +42,11 @@ def set_balance(user_id, para, daily, work):
 async def on_ready():
     print(f"🐱 {bot.user} olarak giriş yapıldı!")
     print("Cat Bot aktif!")
+    try:
+        synced = await tree.sync()
+        print(f"✅ {len(synced)} slash komutu senkronize edildi.")
+    except Exception as e:
+        print(f"❌ Slash komutları senkronize edilemedi: {e}")
 
 @bot.command()
 async def cat(ctx):
@@ -672,6 +679,414 @@ async def testeoji(ctx):
         await ctx.send("❌ Hata: Botun 'Add Reactions' izni yok!")
     except discord.HTTPException as e:
         await ctx.send(f"❌ HTTP hatası: {e}")
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# SLASH COMMANDS  (discord.py 2.x app_commands)
+# All prefix commands above are kept intact for backward compatibility.
+# ════════════════════════════════════════════════════════════════════════════
+
+# ── /cat ─────────────────────────────────────────────────────────────────────
+@tree.command(name="cat", description="Miyav! Rastgele komik kedi sesi ve meme gönderir.")
+async def slash_cat(interaction: discord.Interaction):
+    await interaction.response.defer()
+    sesler = [
+        "miyav!", "meow!", "miaou!", "mrrrow!", "miyav miyav!",
+        "MIYAV!", "mreow~", "prrr... miyav!", "miyav? 👀", "miau!",
+        "nyaa~", "miyaaaaav!", "meow meow meow!", "mrrp!", "miyav 😤",
+    ]
+    ses = random.choice(sesler)
+    meme_urls = [
+        "https://i.imgur.com/LbDCmBP.jpeg",
+        "https://i.imgur.com/Oj3GtQS.jpeg",
+        "https://i.imgur.com/vKFMOEP.jpeg",
+        "https://i.imgur.com/3GNyBme.jpeg",
+        "https://i.imgur.com/sHQFRBa.jpeg",
+        "https://i.imgur.com/nFDHMfN.jpeg",
+        "https://i.imgur.com/0Fy7Ybz.jpeg",
+        "https://i.imgur.com/JFHjILJ.jpeg",
+        "https://i.imgur.com/wkRNBpz.jpeg",
+        "https://i.imgur.com/5YDPQYB.jpeg",
+        "https://i.imgur.com/XgPHmqe.jpeg",
+        "https://i.imgur.com/hUkSoSo.jpeg",
+    ]
+    embed = discord.Embed(title=f"🐱 {ses}", color=0xFF9900)
+    image_set = False
+    try:
+        async with aiohttp.ClientSession() as session:
+            tags = ["funny", "meme", "grumpy", "lol", "cute"]
+            tag = random.choice(tags)
+            url = f"https://cataas.com/cat/{tag}?json=true"
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=4)) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    cat_id = data.get("_id") or data.get("id")
+                    if cat_id:
+                        embed.set_image(url=f"https://cataas.com/cat/{cat_id}")
+                        image_set = True
+    except Exception:
+        pass
+    if not image_set:
+        embed.set_image(url=random.choice(meme_urls))
+    embed.set_footer(text="🐾 Kedi Bot — miyav!")
+    await interaction.followup.send(embed=embed)
+
+
+# ── /help ─────────────────────────────────────────────────────────────────────
+@tree.command(name="help", description="Tüm bot komutlarını listeler.")
+async def slash_help(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🐱 Kedi Bot — Komut Listesi",
+        description="Komutları `/` veya `!` öneki ile kullanabilirsin.",
+        color=0xFF9900,
+    )
+    embed.add_field(
+        name="🐾 Kedi Komutları",
+        value=(
+            "`/cat` — Miyav + rastgele komik kedi meme!\n"
+            "`/catfact` — Rastgele kedi bilgisi\n"
+            "`/catimg` — Rastgele kedi fotoğrafı\n"
+            "`/mood` — Botun ruh hali\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="💰 Para Komutları",
+        value=(
+            "`/bakiye` veya `/balance` — Bakiyeni gör\n"
+            "`/daily` — Günlük para (24 saatte bir)\n"
+            "`/work` — Çalış para kazan (saatte bir)\n"
+            "`/gamble <miktar>` — Kumar oyna\n"
+            "`/leaderboard` — Zenginler sıralaması\n"
+            "`/trivia` — Bilgi yarışması, para kazan\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🎉 Eğlence Komutları",
+        value=(
+            "`/8ball <soru>` — Kedi kehaneti\n"
+            "`/ship @kullanıcı1 @kullanıcı2` — Uyum yüzdesi\n"
+            "`/roast [@kullanıcı]` — Kedi değerlendirmesi\n"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="📌 Prefix Komutları (!)",
+        value=(
+            "Tüm `/` komutları `!` öneki ile de çalışır.\n"
+            "Ek prefix komutları: `!miyav`, `!catfight`, `!randomcat`, `!pet`, `!flamingo`, `!no`, `!uyarı`, `!rob`"
+        ),
+        inline=False,
+    )
+    embed.set_footer(text="🐱 Kedi Bot — Miyav!")
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /bakiye ───────────────────────────────────────────────────────────────────
+@tree.command(name="bakiye", description="Kedi parası bakiyeni gösterir.")
+async def slash_bakiye(interaction: discord.Interaction):
+    user = get_balance(interaction.user.id)
+    await interaction.response.send_message(
+        f"💰 Bakiyen: **{user['para']}** kedi parası"
+    )
+
+
+# ── /balance ──────────────────────────────────────────────────────────────────
+@tree.command(name="balance", description="Show your cat coin balance (English alias for /bakiye).")
+async def slash_balance(interaction: discord.Interaction):
+    user = get_balance(interaction.user.id)
+    await interaction.response.send_message(
+        f"💰 Balance: **{user['para']}** cat coins"
+    )
+
+
+# ── /daily ────────────────────────────────────────────────────────────────────
+@tree.command(name="daily", description="Günlük para ödülünü al (24 saatte bir).")
+async def slash_daily(interaction: discord.Interaction):
+    user = get_balance(interaction.user.id)
+    now = datetime.now()
+    if user["daily"]:
+        last_daily = datetime.fromisoformat(user["daily"])
+        kalan = (last_daily + timedelta(hours=24)) - now
+        if kalan.total_seconds() > 0:
+            await interaction.response.send_message(
+                f"⏰ Günlük ödül için **{int(kalan.total_seconds() // 3600)} saat** bekle!"
+            )
+            return
+    para = random.randint(20, 100)
+    new_balance = user["para"] + para
+    set_balance(interaction.user.id, new_balance, now.isoformat(), user["work"])
+    await interaction.response.send_message(
+        f"💼 Günlük ödülünü aldın! Kazandın: **{para}** kedi parası 🎉\n"
+        f"Toplam bakiye: **{new_balance}**"
+    )
+
+
+# ── /work ─────────────────────────────────────────────────────────────────────
+@tree.command(name="work", description="Çalış para kazan (saatte bir kullanılabilir).")
+async def slash_work(interaction: discord.Interaction):
+    user = get_balance(interaction.user.id)
+    now = datetime.now()
+    if user["work"]:
+        last_work = datetime.fromisoformat(user["work"])
+        kalan = (last_work + timedelta(hours=1)) - now
+        if kalan.total_seconds() > 0:
+            dakika = int(kalan.total_seconds() // 60)
+            saniye = int(kalan.total_seconds() % 60)
+            await interaction.response.send_message(
+                f"⏰ Çok yoruldun! **{dakika}dk {saniye}sn** sonra tekrar çalışabilirsin."
+            )
+            return
+    isler = [
+        ("🐟 Balık sattın", random.randint(10, 40)),
+        ("🧶 Yumak sardın", random.randint(10, 40)),
+        ("📦 Kedi maması taşıdın", random.randint(10, 40)),
+        ("🖼️ Kedi portresi çizdin", random.randint(15, 50)),
+        ("🎤 Kedi şarkısı söyledin", random.randint(10, 35)),
+        ("🧹 Kedi tüyü süpürdün", random.randint(10, 30)),
+        ("📸 Kedi fotoğrafı çektin", random.randint(15, 45)),
+        ("🏠 Kedi oteli işlettin", random.randint(20, 60)),
+    ]
+    is_adi, kazanc = random.choice(isler)
+    new_balance = user["para"] + kazanc
+    set_balance(interaction.user.id, new_balance, user["daily"], now.isoformat())
+    await interaction.response.send_message(
+        f"{is_adi}! Kazandın: **{kazanc}** kedi parası 💰\n"
+        f"Toplam bakiye: **{new_balance}**"
+    )
+
+
+# ── /gamble ───────────────────────────────────────────────────────────────────
+@tree.command(name="gamble", description="Kumar oyna! Kazanırsan 2 katını al, kaybedersen gider.")
+@app_commands.describe(miktar="Kumar oynamak istediğin kedi parası miktarı")
+async def slash_gamble(interaction: discord.Interaction, miktar: int):
+    user = get_balance(interaction.user.id)
+    if miktar <= 0:
+        await interaction.response.send_message("❌ Geçersiz miktar!", ephemeral=True)
+        return
+    if miktar > user["para"]:
+        await interaction.response.send_message(
+            f"❌ Yetersiz para! Bakiye: **{user['para']}**", ephemeral=True
+        )
+        return
+    if random.random() < 0.5:
+        kazanc = miktar * 2
+        new_balance = user["para"] + kazanc - miktar
+        set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
+        await interaction.response.send_message(
+            f"🎉 Kazandın! +**{kazanc}** kedi parası! Toplam: **{new_balance}**"
+        )
+    else:
+        new_balance = user["para"] - miktar
+        set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
+        await interaction.response.send_message(
+            f"😢 Kaybettin... -**{miktar}** kedi parası. Kalan: **{new_balance}**"
+        )
+
+
+# ── /8ball ────────────────────────────────────────────────────────────────────
+@tree.command(name="8ball", description="Kedi kehanetine sor! Soruyu yaz, kedi cevaplasın.")
+@app_commands.describe(soru="Kediye sormak istediğin soru")
+async def slash_eightball(interaction: discord.Interaction, soru: str):
+    cevaplar = [
+        "😸 Kesinlikle evet! Kedi onayladı.",
+        "🐱 Evet, miyav!",
+        "😺 Bence öyle.",
+        "🐾 İşaretler evet diyor.",
+        "😼 Şüpheli... ama belki.",
+        "🙀 Bunu bilmiyorum, sor bakalım.",
+        "😾 Hayır, kesinlikle hayır.",
+        "🐱 Cevap bulanık, tekrar dene.",
+        "😿 Hayır, kedi reddetti.",
+        "🐾 Kesinlikle hayır! Miyav!",
+        "😸 Çok muhtemel!",
+        "😼 Pek sanmıyorum...",
+    ]
+    await interaction.response.send_message(
+        f"🎱 **Soru:** {soru}\n**Kedi Kehaneti:** {random.choice(cevaplar)}"
+    )
+
+
+# ── /catfact ──────────────────────────────────────────────────────────────────
+@tree.command(name="catfact", description="Rastgele gerçek bir kedi bilgisi öğren.")
+async def slash_catfact(interaction: discord.Interaction):
+    gercekler = [
+        "🐱 Kediler günde ortalama 12-16 saat uyur.",
+        "🐾 Bir kedinin burnu parmak izi gibi benzersizdir.",
+        "😸 Kediler tatlı tadını alamaz — tatlı reseptörleri yok!",
+        "🐱 Kediler 'miyav' sesini yalnızca insanlarla iletişim için çıkarır.",
+        "😺 Bir kedi düşerken her zaman ayakları üzerine iner — bu 'kedi hakemliği' refleksidir.",
+        "🐾 Kedilerin 32 kulak kası vardır ve kulaklarını 180 derece döndürebilirler.",
+        "😼 Kediler saatte 48 km'ye kadar koşabilir.",
+        "🙀 Bir kedinin kalp atışı dakikada 140-220 arasındadır.",
+        "🐱 Kediler koku almak için ağızlarını açar — buna 'flehmen tepkisi' denir.",
+        "😸 Dünyanın en yaşlı kedisi 38 yıl yaşadı!",
+        "🐾 Kediler mırıldanarak hem mutluluklarını hem de streslerini ifade eder.",
+        "😺 Bir kedinin iskeleti 230 kemikten oluşur; insanınki 206.",
+    ]
+    await interaction.response.send_message(random.choice(gercekler))
+
+
+# ── /catimg ───────────────────────────────────────────────────────────────────
+@tree.command(name="catimg", description="İnternetten rastgele bir kedi fotoğrafı gönderir.")
+async def slash_catimg(interaction: discord.Interaction):
+    await interaction.response.defer()
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.thecatapi.com/v1/images/search",
+                timeout=aiohttp.ClientTimeout(total=5),
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    url = data[0]["url"]
+                    embed = discord.Embed(title="🐱 Rastgele Kedi!", color=0xFF9900)
+                    embed.set_image(url=url)
+                    await interaction.followup.send(embed=embed)
+                    return
+    except Exception:
+        pass
+    yedek_urls = [
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg",
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/Kittyply_edit1.jpg/1200px-Kittyply_edit1.jpg",
+    ]
+    embed = discord.Embed(title="🐱 Rastgele Kedi!", color=0xFF9900)
+    embed.set_image(url=random.choice(yedek_urls))
+    await interaction.followup.send(embed=embed)
+
+
+# ── /mood ─────────────────────────────────────────────────────────────────────
+@tree.command(name="mood", description="Botun bugünkü ruh halini öğren.")
+async def slash_mood(interaction: discord.Interaction):
+    ruh_halleri = [
+        ("😸 Mutlu", "Bugün her şey harika! Miyav!"),
+        ("😼 Sinirli", "Beni rahatsız etme, uyumak istiyorum."),
+        ("😺 Meraklı", "Bu düğmeye basarsam ne olur acaba..."),
+        ("🙀 Şaşkın", "Neden bu kadar çok insan var burada?!"),
+        ("😿 Hüzünlü", "Mama kabım boş. Hayat zor."),
+        ("😾 Asabi", "Dokunma bana. Ciddi söylüyorum."),
+        ("🐱 Sakin", "Her şey yolunda. Güneşte uzanıyorum."),
+        ("😹 Neşeli", "Hahaha! Bir şey düştü ve ben ittirdim!"),
+    ]
+    ruh_hali, aciklama = random.choice(ruh_halleri)
+    embed = discord.Embed(
+        title=f"Botun Ruh Hali: {ruh_hali}",
+        description=aciklama,
+        color=0xFF9900,
+    )
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /ship ─────────────────────────────────────────────────────────────────────
+@tree.command(name="ship", description="İki kullanıcı arasındaki uyumu ölç.")
+@app_commands.describe(
+    kullanici1="Birinci kullanıcı",
+    kullanici2="İkinci kullanıcı",
+)
+async def slash_ship(
+    interaction: discord.Interaction,
+    kullanici1: discord.Member,
+    kullanici2: discord.Member,
+):
+    seed = (kullanici1.id + kullanici2.id) % 101
+    oran = seed
+    if oran >= 80:
+        yorum = "💞 Mükemmel uyum! Kedi onayladı!"
+        renk = 0xFF69B4
+    elif oran >= 60:
+        yorum = "💕 İyi uyum! Devam edin."
+        renk = 0xFF9900
+    elif oran >= 40:
+        yorum = "💛 Fena değil, ama kedi şüpheli bakıyor."
+        renk = 0xFFFF00
+    elif oran >= 20:
+        yorum = "💔 Pek uyumlu değilsiniz..."
+        renk = 0xFF6600
+    else:
+        yorum = "😾 Kedi bu birlikteliği onaylamıyor."
+        renk = 0xFF0000
+    dolu = int(oran / 10)
+    bos = 10 - dolu
+    bar = "❤️" * dolu + "🖤" * bos
+    embed = discord.Embed(title="💕 Uyum Testi", color=renk)
+    embed.add_field(name="Çift", value=f"{kullanici1.mention} & {kullanici2.mention}", inline=False)
+    embed.add_field(name="Uyum", value=f"{bar} **%{oran}**", inline=False)
+    embed.add_field(name="Yorum", value=yorum, inline=False)
+    await interaction.response.send_message(embed=embed)
+
+
+# ── /roast ────────────────────────────────────────────────────────────────────
+@tree.command(name="roast", description="Kedi seni (veya başka birini) acımasızca değerlendiriyor.")
+@app_commands.describe(hedef="Roast edilecek kullanıcı (boş bırakırsan kendin roast edilirsin)")
+async def slash_roast(
+    interaction: discord.Interaction,
+    hedef: discord.Member = None,
+):
+    if hedef is None:
+        hedef = interaction.user
+    roastlar = [
+        f"😼 {hedef.mention} — Kedi seni inceledi ve 'meh' dedi.",
+        f"😾 {hedef.mention} — Kediye göre sen bir Pazartesi sabahısın.",
+        f"🐱 {hedef.mention} — Kedi seni gördü ve uyumaya devam etti.",
+        f"😼 {hedef.mention} — Kedi seni fare ile karıştırdı. Fare daha ilginçti.",
+        f"🙀 {hedef.mention} — Kedi senden kaçtı. Bu çok şey söylüyor.",
+        f"😹 {hedef.mention} — Kedi seni değerlendirdi: 2/10, tekrar dene.",
+        f"😾 {hedef.mention} — Kedi seni gördü, kuyruk sallamadı. Bu kötü işaret.",
+        f"🐾 {hedef.mention} — Kedi seni bir mobilya olarak sınıflandırdı.",
+        f"😼 {hedef.mention} — Kedi sana baktı ve 'bu benim zamanıma değmez' dedi.",
+    ]
+    await interaction.response.send_message(random.choice(roastlar))
+
+
+# ── /trivia ───────────────────────────────────────────────────────────────────
+@tree.command(name="trivia", description="Kedi bilgi yarışması — doğru cevapla para kazan!")
+async def slash_trivia(interaction: discord.Interaction):
+    soru_data = random.choice(TRIVIA_SORULARI)
+    embed = discord.Embed(
+        title="🧠 Kedi Bilgi Yarışması",
+        description=soru_data["soru"],
+        color=0x00BFFF,
+    )
+    embed.add_field(name="💡 İpucu", value=soru_data["ipucu"], inline=False)
+    embed.add_field(name="💰 Ödül", value=f"{soru_data['odul']} kedi parası", inline=False)
+    embed.set_footer(text="30 saniye içinde bu kanala cevabını yaz!")
+    await interaction.response.send_message(embed=embed)
+
+    def kontrol(m):
+        return m.author.id == interaction.user.id and m.channel.id == interaction.channel_id
+
+    try:
+        mesaj = await bot.wait_for("message", timeout=30.0, check=kontrol)
+        verilen = mesaj.content.strip().lower()
+        dogru_cevaplar = [c.lower() for c in soru_data["cevap"]]
+        if verilen in dogru_cevaplar:
+            user = get_balance(interaction.user.id)
+            new_balance = user["para"] + soru_data["odul"]
+            set_balance(interaction.user.id, new_balance, user["daily"], user["work"])
+            await interaction.followup.send(
+                f"✅ **Doğru!** +{soru_data['odul']} kedi parası kazandın! "
+                f"Toplam: **{new_balance}** 💰"
+            )
+        else:
+            dogru = soru_data["cevap"][0]
+            await interaction.followup.send(f"❌ **Yanlış!** Doğru cevap: **{dogru}** 😿")
+    except Exception:
+        await interaction.followup.send("⏰ Süre doldu! Cevap veremedin. 😿")
+
+
+# ── /leaderboard ──────────────────────────────────────────────────────────────
+@tree.command(name="leaderboard", description="En zengin kedi parası sahiplerini gösterir.")
+async def slash_leaderboard(interaction: discord.Interaction):
+    data = load_data()
+    if not data:
+        await interaction.response.send_message("📊 Henüz kimse para kazanmamış!")
+        return
+    sıralı = sorted(data.items(), key=lambda x: x[1]["para"], reverse=True)[:5]
+    msg = "🏆 **EN ZENGİN KEDİ PARASI SAHİPLERİ**\n\n"
+    for i, (user_id, info) in enumerate(sıralı, 1):
+        msg += f"{i}. <@{user_id}>: **{info['para']}** 💰\n"
+    await interaction.response.send_message(msg)
 
 
 # ── on_message (ALL CAPS auto-react) ─────────────────────────────────────────
