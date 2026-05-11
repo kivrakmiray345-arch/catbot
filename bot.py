@@ -324,6 +324,7 @@ async def flamingo(ctx):
         "🦩 Beklenmedik flamingo dansı başladı! 💃",
         "🦩 Flamingo, kedinin en büyük rakibi. Bugün flamingo kazandı.",
         "🦩 Bir flamingo sunucuya girdi ve kimse fark etmedi.",
+        "Oooh😨Ne görüyorum ben🧐 Flamingo mu o?!🦩Ama bir dakika...🕥Bu flamingo ne yapıyor?!?!😱Şaka mı bu??? 😡Taksi mi sürüyor???🚖🦩Vay vay vay!😎Görende inanmaz ama işte gözümle görüyorum👀",
     ]
     await ctx.send(random.choice(mesajlar))
 
