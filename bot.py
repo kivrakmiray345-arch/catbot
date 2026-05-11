@@ -1092,11 +1092,16 @@ async def slash_leaderboard(interaction: discord.Interaction):
 
 
 # ── /benim-kedim ──────────────────────────────────────────────────────────────
+# ── /benim-kedim ────────────────────────────────────────────────────────────
 @tree.command(name="benim-kedim", description="Benim kedim fotoğrafını göster 🐱")
 async def slash_benim_kedim(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🐱 Benim Kedim!",
         color=0xFF9900,
+    )
+    embed.set_image(url="https://i.pinimg.com/736x/b0/a7/5e/b0a75e2e3b5b8e4e1e6e7e8e9e0e1e2e.jpg")
+    embed.set_footer(text="🐾 Kedi Bot — miyav!")
+    await interaction.response.send_message(embed=embed)
     )
     embed.set_image(url="https://i.pinimg.com/736x/b0/a7/5e/b0a75e2e3b5b8e4e1e6e7e8e9e0e1e2e.jpg")
     embed.set_footer(text="🐾 Kedi Bot — miyav!")
