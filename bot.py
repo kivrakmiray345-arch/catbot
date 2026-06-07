@@ -1402,8 +1402,8 @@ async def slash_benim_kedim(interaction: discord.Interaction):
 
 
 # ── on_message (ALL CAPS auto-react) ─────────────────────────────────────────
-CAPS_EMOJI_ID   = 1498367793827942500
-CAPS_EMOJI_NAME = "buneamkhjsdhklsdkhds"
+CAPS_EMOJI_ID   = int(os.environ.get("CAPS_EMOJI_ID", "1505567667736543242"))
+CAPS_EMOJI_NAME = "huhu"
 CAPS_THRESHOLD  = 0.80   # ≥80 % of letters must be uppercase
 
 
